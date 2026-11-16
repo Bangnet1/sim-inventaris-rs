@@ -35,11 +35,11 @@ async function compressMonitoringPhoto(file){
 
 function App(){
   const [session,setSession]=useState(null),[profile,setProfile]=useState(null),[page,setPage]=useState(()=>{const valid=['Dashboard','Monitoring Shift','Data Inventaris','Lantai & Ruangan','Barang Dipinjam','Riwayat Monitoring','Laporan','Petugas'];try{const fromHash=decodeURIComponent(window.location.hash.replace(/^#/,''));const saved=localStorage.getItem('sim-inventaris-rs:last-page');return valid.includes(fromHash)?fromHash:(valid.includes(saved)?saved:'Dashboard');}catch{return 'Dashboard';}}),[mobile,setMobile]=useState(false);
-  const [items,setItems]=useState([]),[floors,setFloors]=useState([]),[rooms,setRooms]=useState([]),[records,setRecords]=useState([]),[sessions,setSessions]=useState([]);
+  const [items,setItems]=useState([]),[floors,setFloors]=useState([]),[rooms,setRooms]=useState([]),[records,setRecords]=useState([]),[sessions,setSessions]=useState([]),[returns,setReturns]=useState([]);
   const [loading,setLoading]=useState(true),[error,setError]=useState(''),[email,setEmail]=useState(''),[password,setPassword]=useState(''),[busy,setBusy]=useState(false);
   const [search,setSearch]=useState(''),[showAdd,setShowAdd]=useState(false),[newItem,setNewItem]=useState({asset_code:'',name:'',category:'Umum',floor_id:'',notes:''});
   const [historyFilters,setHistoryFilters]=useState({from:'',to:'',item:'',floor:'',shift:'',staff:''});
-  const [photoPreview,setPhotoPreview]=useState(null),[photoLoading,setPhotoLoading]=useState('');
+  const [photoPreview,setPhotoPreview]=useState(null),[photoLoading,setPhotoLoading]=useState(''),[returnNotes,setReturnNotes]=useState({}),[returningRecord,setReturningRecord]=useState('');
   const [newFloorName,setNewFloorName]=useState(''),[roomNames,setRoomNames]=useState({}),[addingFloor,setAddingFloor]=useState(false),[addingRoom,setAddingRoom]=useState({});
   const [monitor,setMonitor]=useState({floor_id:'',shift:'Pagi'}),[checkPhotos,setCheckPhotos]=useState({}),[checkStatuses,setCheckStatuses]=useState({}),[checkNotes,setCheckNotes]=useState({}),[savingItem,setSavingItem]=useState('');
   useEffect(()=>{ if(!supabase){setLoading(false);return;} supabase.auth.getSession().then(({data})=>setSession(data.session)); const {data:{subscription}}=supabase.auth.onAuthStateChange((_e,s)=>setSession(s)); return ()=>subscription.unsubscribe(); },[]);
@@ -48,16 +48,17 @@ function App(){
   async function loadAll(){
     setLoading(true);setError('');
     try{
-      const [p,i,f,rm,r,s]=await Promise.all([
+      const [p,i,f,rm,r,s,ret]=await Promise.all([
         supabase.from('profiles').select('*').eq('id',session.user.id).single(),
         supabase.from('inventory_items').select('*, floors(name)').eq('is_active',true).order('name'),
         supabase.from('floors').select('*').eq('is_active',true).order('sort_order'),
         supabase.from('rooms').select('*, floors(name)').eq('is_active',true).order('name'),
         supabase.from('monitoring_records').select('*, inventory_items(name,asset_code), monitoring_sessions(monitoring_date,shift,floor_id,floors(name)), profiles!monitoring_records_recorded_by_profile_fkey(full_name)').order('recorded_at',{ascending:false}).limit(1000),
-        supabase.from('monitoring_sessions').select('*, floors(name)').order('started_at',{ascending:false}).limit(30)
+        supabase.from('monitoring_sessions').select('*, floors(name)').order('started_at',{ascending:false}).limit(30),
+        supabase.from('inventory_returns').select('*').order('returned_at',{ascending:false})
       ]);
       if(p.error) throw p.error; if(i.error) throw i.error; if(f.error) throw f.error;
-      setProfile(p.data);setItems(i.data||[]);setFloors(f.data||[]);setRooms(rm.data||[]);setRecords(r.data||[]);setSessions(s.data||[]);
+      setProfile(p.data);setItems(i.data||[]);setFloors(f.data||[]);setRooms(rm.data||[]);setRecords(r.data||[]);setSessions(s.data||[]);setReturns(ret.data||[]);
     }catch(e){setError(e.message||'Gagal memuat data');}finally{setLoading(false);}
   }
   async function signIn(e){e.preventDefault();setBusy(true);setError('');const {error}=await supabase.auth.signInWithPassword({email,password});if(error)setError(error.message);setBusy(false);}
@@ -154,6 +155,18 @@ function App(){
     }catch(e){setError(e.message||'Gagal menyimpan monitoring.');}
     finally{setSavingItem('');}
   }
+  async function markItemReturned(record){
+    if(!window.confirm('Konfirmasi bahwa '+record.item_name_snapshot+' sudah dikembalikan?'))return;
+    setReturningRecord(record.id);setError('');
+    try{
+      const {error}=await supabase.from('inventory_returns').insert({monitoring_record_id:record.id,inventory_item_id:record.inventory_item_id,returned_by:session.user.id,notes:(returnNotes[record.id]||'').trim()||null});
+      if(error)throw error;
+      setReturnNotes(v=>({...v,[record.id]:''}));
+      await loadAll();
+      setError('Pengembalian '+record.item_name_snapshot+' berhasil dicatat.');
+    }catch(e){setError(e.message||'Gagal mencatat pengembalian barang.');}
+    finally{setReturningRecord('');}
+  }
   async function viewMonitoringPhoto(record){
     if(!record.photo_path){setError('Foto bukti tidak tersedia pada catatan monitoring ini.');return;}
     setPhotoLoading(record.id);setError('');
@@ -210,7 +223,7 @@ function App(){
       <div className="location-grid">{floors.map(f=><div className="panel floor-card" key={f.id}><div className="floor-heading"><div className="floor-icon"><Building2 size={21}/></div><div className="floor-title"><h3>{f.name}</h3><small>{items.filter(i=>i.floor_id===f.id).length} barang · {rooms.filter(r=>r.floor_id===f.id).length} ruangan</small></div>{canManageLocations&&<><button className="icon-btn edit-icon" title="Edit nama lantai" onClick={()=>editFloor(f)}><Pencil size={16}/></button><button className="icon-btn danger-icon" title="Hapus lantai" onClick={()=>deleteFloor(f)}><X size={17}/></button></>}</div><div className="room-list">{rooms.filter(r=>r.floor_id===f.id).map(room=><div className="room-row" key={room.id}><span>{room.name}</span>{canManageLocations&&<div className="room-actions"><button className="icon-btn edit-icon" title="Edit nama ruangan" onClick={()=>editRoom(room)}><Pencil size={14}/></button><button className="icon-btn danger-icon" title="Hapus ruangan" onClick={()=>deleteRoom(room)}><X size={15}/></button></div>}</div>)}{!rooms.some(r=>r.floor_id===f.id)&&<p className="empty-room">Belum ada ruangan di lantai ini.</p>}</div>{canManageLocations&&<div className="inline-add room-add"><input value={roomNames[f.id]||''} onChange={e=>setRoomNames(v=>({...v,[f.id]:e.target.value}))} placeholder="Nama ruangan, mis. IGD"/><button className="secondary" disabled={addingRoom[f.id]||!(roomNames[f.id]||'').trim()} onClick={()=>addRoom(f.id)}><Plus size={15}/> Ruangan</button></div>}</div>)}</div>
       {!canManageLocations&&<p className="hint">Anda dapat melihat daftar lokasi. Hanya Super Admin dan Admin Inventaris yang dapat menambah atau menghapus lantai dan ruangan.</p>}
       </>}
-      {page==='Barang Dipinjam'&&<div className="panel"><h3>Barang Dipinjam</h3>{records.filter(r=>r.status==='borrowed').map(r=><div className="activity" key={r.id}><Archive/><div><b>{r.item_name_snapshot}</b><small>{r.notes||'Peminjam belum dicantumkan'}</small></div><StatusPill value="borrowed"/></div>)}{!records.some(r=>r.status==='borrowed')&&<Empty text="Tidak ada barang berstatus dipinjam pada data terbaru."/>}</div>}
+      {page==='Barang Dipinjam'&&<><div className="page-intro"><div><h1>Barang Dipinjam</h1><p>Catat barang yang telah dikembalikan agar status inventaris diperbarui.</p></div></div><div className="panel"><h3>Masih Dipinjam</h3>{Object.values(latestByItem).filter(r=>r.status==='borrowed'&&!returns.some(x=>x.monitoring_record_id===r.id)).map(r=><div className="borrowed-row" key={r.id}><div className="activity"><Archive/><div><b>{r.item_name_snapshot}</b><small>{r.borrowed_to||r.notes||'Peminjam belum dicantumkan'} · {new Date(r.recorded_at).toLocaleString('id-ID')}</small></div><StatusPill value="borrowed"/></div><div className="return-controls"><input value={returnNotes[r.id]||''} onChange={e=>setReturnNotes(v=>({...v,[r.id]:e.target.value}))} placeholder="Catatan pengembalian (opsional)"/><button className="primary" type="button" disabled={returningRecord===r.id} onClick={()=>markItemReturned(r)}>{returningRecord===r.id?'Menyimpan…':'Tandai sudah dikembalikan'}</button></div></div>)}{!Object.values(latestByItem).some(r=>r.status==='borrowed'&&!returns.some(x=>x.monitoring_record_id===r.id))&&<Empty text="Tidak ada barang yang masih dipinjam."/>}</div><div className="panel"><h3>Riwayat Pengembalian</h3>{returns.map(x=>{const record=records.find(r=>r.id===x.monitoring_record_id);return <div className="activity" key={x.id}><CheckCircle2/><div><b>{record?.item_name_snapshot||'Barang inventaris'}</b><small>{new Date(x.returned_at).toLocaleString('id-ID')}{x.notes?' · '+x.notes:''}</small></div><span className="status-pill good">Dikembalikan</span></div>;})}{!returns.length&&<Empty text="Belum ada pengembalian yang dicatat."/>}</div></>}
       {page==='Laporan'&&<div className="panel"><h3>Ringkasan Laporan</h3><p className="muted">Ringkasan status berdasarkan monitoring terbaru per barang.</p><div className="stats-grid compact"><Stat label="Ada" value={stats.present} tone="green"/><Stat label="Tidak ada" value={stats.missing} tone="red"/><Stat label="Dipinjam" value={stats.borrowed} tone="amber"/><Stat label="Belum dimonitor" value={stats.unchecked} tone="gray"/></div></div>}
       {page==='Petugas'&&<div className="panel"><h3>Profil Petugas Aktif</h3><p className="muted">Daftar profil pengguna yang telah terdaftar.</p><div className="activity"><Users/><b>{profile?.full_name}</b><span className="muted">{profile?.role}</span></div><p className="hint">Penetapan administrator dilakukan melalui pengaturan aman di Supabase, bukan melalui formulir publik.</p></div>}
       </>}
