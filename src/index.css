@@ -57,3 +57,58 @@
 .checklist-empty p{color:#89999d;font-size:12px;max-width:420px;margin:0}
 .photo-file-name{font-size:11px;color:#087f73;overflow-wrap:anywhere}
 @media(max-width:760px){.filter-grid{grid-template-columns:1fr}.checklist-summary{gap:7px}.checklist-summary>div{padding:12px 10px}.checklist-summary b{font-size:20px}.checklist-summary span{font-size:10px}.checklist-item-head{gap:7px}.pending-pill{font-size:9px;padding:5px 7px}}
+
+
+/* SIM Inventaris RS — palet navy, gold, dan ivory terinspirasi referensi IHC HIS */
+:root{color:#252a34;background:#f4ecd9}
+body{background:#f4ecd9;color:#252a34}
+.sidebar{background:#111a2d;color:#eee5ca}
+.side-brand small,.nav-caption,.eyebrow{color:#c5b47c}
+.nav-link{color:#d7d1c0}
+.nav-link:hover,.nav-link.active{background:#28334a;color:#fff7df}
+.nav-link.active{box-shadow:inset 3px 0 #d8c27a}
+.brand-mark{background:#f2e6c4;color:#705a2d}
+.avatar{background:#f1e4c0;color:#57451f}
+.main{background:#f4ecd9}
+.topbar{background:#fdfbf5;border-bottom-color:#e5dac0}
+.topbar h2,.welcome h1,.page-intro h1,.stat-card strong{color:#202b3d}
+.topbar .eyebrow{color:#8e8058}
+.content{color:#2d3035}
+.welcome p,.page-intro p,.muted{color:#817d70}
+.primary{background:#b69a50;color:#171b25;box-shadow:0 5px 12px #8a73301c}
+.primary:hover{background:#a58a43;color:#111827}
+.link-btn,.text-button{color:#8c7133}
+.icon-btn{color:#766a4d}
+.icon-btn:hover{background:#f1e8d3}
+.panel,.stat-card,.checklist-summary>div,.modal,.login-card{background:#fffdf8;border-color:#e6dcc5}
+.panel h3,.panel-head h3{color:#283144}
+.panel-head p,.stat-card small{color:#89816e}
+.stat-icon.teal,.stat-icon.gray,.activity-icon,.guide-icon{background:#f2e8ce;color:#8a7135}
+.stat-icon.amber{background:#f7eed8;color:#9b7b31}
+.pill{background:#f4ecd7;color:#80672c}
+.form-panel label,.modal label,.login-card label{color:#554d3c}
+.form-panel input:not([type=file]),.form-panel select,.form-panel textarea,.modal input,.modal select,.modal textarea,.login-card input,.inline-add input{background:#fffefa;border-color:#e2d8c3;color:#333744}
+.form-panel input:focus,.form-panel select:focus,.form-panel textarea:focus,.modal input:focus,.login-card input:focus,.inline-add input:focus{border-color:#b69a50;box-shadow:0 0 0 3px #b69a501c}
+.choice{border-color:#e3dac7;color:#6f6a5d;background:#fffefa}
+.choice.chosen{border-color:#ad9148;background:#f5edda;color:#705a28}
+.upload-box{border-color:#cbbb91;background:#faf6eb;color:#8b7135!important}
+.guide-note{background:#f5efdf;color:#806b3d}
+.status-pill.neutral{background:#f0eee7;color:#716d60}
+.table-wrap th{color:#8d836b;border-bottom-color:#e9e0ce}
+.table-wrap td{border-bottom-color:#eee7d9;color:#625d52}
+.table-wrap td b{color:#303747}
+.search{border-color:#e2d9c7;color:#8b816a;background:#fffdf8}
+.search input{background:transparent;color:#333744}
+.bar{background:#eee9dd}
+.checklist-summary b{color:#8d7134}
+.checklist-empty{color:#9a8044}
+.pending-pill{background:#f5edd9;color:#866c30}
+.floor-icon{background:#f3ead4;color:#8c7135}
+.secondary{background:#f1e8d2;color:#7d642d}
+.edit-icon{color:#9a7a36}
+.edit-icon:hover{background:#f4ecd9;color:#765d2a}
+.danger-icon{color:#aa6b61}
+.setup{background:linear-gradient(135deg,#f4ecd9,#e8dfc8)}
+.modal-backdrop{background:#101827b8}
+.notice{background:#f8f0dc;color:#82652b}
+@media(max-width:760px){.topbar{background:#fffdf8}.content{background:#f4ecd9}}
