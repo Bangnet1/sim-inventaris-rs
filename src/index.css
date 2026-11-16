@@ -286,3 +286,9 @@ body{background:#f4ecd9;color:#252a34}
  .history-filter-panel:has(.filter-trigger-row),.inventory-filter-panel:has(.filter-trigger-row){padding:9px 12px}
  .filter-trigger-row .filter-toggle{min-height:36px;padding:7px 12px}
 }
+
+
+/* Keep Reset filter beside Filter using the same compact button treatment */
+.filter-trigger-row{display:flex;justify-content:flex-end;align-items:center;gap:8px}
+.filter-reset-toggle{background:transparent;border-color:#e5dcc8;color:#817044}
+.filter-reset-toggle:hover{background:#f7f0df}
