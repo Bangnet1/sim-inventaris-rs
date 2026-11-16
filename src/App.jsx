@@ -8,16 +8,16 @@ const nav = [
 const fmt = n => new Intl.NumberFormat('id-ID').format(n || 0);
 function App(){
   const [session,setSession]=useState(null),[profile,setProfile]=useState(null),[page,setPage]=useState('Dashboard'),[mobile,setMobile]=useState(false);
-  const [items,setItems]=useState([]),[floors,setFloors]=useState([]),[records,setRecords]=useState([]),[sessions,setSessions]=useState([]);
+  const [items,setItems]=useState([]),[floors,setFloors]=useState([]),[rooms,setRooms]=useState([]),[records,setRecords]=useState([]),[sessions,setSessions]=useState([]);
   const [loading,setLoading]=useState(true),[error,setError]=useState(''),[email,setEmail]=useState(''),[password,setPassword]=useState(''),[busy,setBusy]=useState(false);
-  const [search,setSearch]=useState(''),[showAdd,setShowAdd]=useState(false),[newItem,setNewItem]=useState({asset_code:'',name:'',category:'Umum',floor_id:'',notes:''});
+  const [search,setSearch]=useState(''),[showAdd,setShowAdd]=useState(false),[newItem,setNewItem]=useState({asset_code:'',name:'',category:'Umum',floor_id:'',notes:''});\n  const [newFloorName,setNewFloorName]=useState(''),[roomNames,setRoomNames]=useState({}),[addingFloor,setAddingFloor]=useState(false),[addingRoom,setAddingRoom]=useState({});
   const [monitor,setMonitor]=useState({floor_id:'',shift:'Pagi'}),[photo,setPhoto]=useState(null),[monitorStatus,setMonitorStatus]=useState('present'),[monitorItem,setMonitorItem]=useState(''),[notes,setNotes]=useState('');
   useEffect(()=>{ if(!supabase){setLoading(false);return;} supabase.auth.getSession().then(({data})=>setSession(data.session)); const {data:{subscription}}=supabase.auth.onAuthStateChange((_e,s)=>setSession(s)); return ()=>subscription.unsubscribe(); },[]);
   useEffect(()=>{ if(session?.user) loadAll(); else {setProfile(null);setLoading(false);} },[session]);
   async function loadAll(){
     setLoading(true);setError('');
     try{
-      const [p,i,f,r,s]=await Promise.all([
+      const [p,i,f,rm,r,s]=await Promise.all([
         supabase.from('profiles').select('*').eq('id',session.user.id).single(),
         supabase.from('inventory_items').select('*, floors(name)').eq('is_active',true).order('name'),
         supabase.from('floors').select('*').eq('is_active',true).order('sort_order'),
@@ -25,12 +25,49 @@ function App(){
         supabase.from('monitoring_sessions').select('*, floors(name)').order('started_at',{ascending:false}).limit(30)
       ]);
       if(p.error) throw p.error; if(i.error) throw i.error; if(f.error) throw f.error;
-      setProfile(p.data);setItems(i.data||[]);setFloors(f.data||[]);setRecords(r.data||[]);setSessions(s.data||[]);
+      setProfile(p.data);setItems(i.data||[]);setFloors(f.data||[]);setRooms(rm.data||[]);setRecords(r.data||[]);setSessions(s.data||[]);
     }catch(e){setError(e.message||'Gagal memuat data');}finally{setLoading(false);}
   }
   async function signIn(e){e.preventDefault();setBusy(true);setError('');const {error}=await supabase.auth.signInWithPassword({email,password});if(error)setError(error.message);setBusy(false);}
   async function signUp(e){e.preventDefault();setBusy(true);setError('');const {error}=await supabase.auth.signUp({email,password,options:{data:{full_name:email.split('@')[0]}}});setError(error?error.message:'Akun berhasil dibuat. Jika konfirmasi email aktif, cek email Anda.');setBusy(false);}
   async function addItem(e){e.preventDefault();setBusy(true);const {error}=await supabase.from('inventory_items').insert({...newItem,created_by:session.user.id});if(error)setError(error.message);else{setShowAdd(false);setNewItem({asset_code:'',name:'',category:'Umum',floor_id:'',notes:''});await loadAll();}setBusy(false);}
+  const canManageLocations=['super_admin','inventory_admin'].includes(profile?.role);
+  async function addFloor(e){
+    e.preventDefault(); if(!newFloorName.trim())return;
+    setAddingFloor(true);setError('');
+    const {error}=await supabase.from('floors').insert({name:newFloorName.trim(),sort_order:floors.length+1});
+    if(error)setError(error.message);else{setNewFloorName('');await loadAll();}
+    setAddingFloor(false);
+  }
+  async function deleteFloor(floor){
+    const [roomRes,itemRes,sessionRes]=await Promise.all([
+      supabase.from('rooms').select('id').eq('floor_id',floor.id),
+      supabase.from('inventory_items').select('id').eq('floor_id',floor.id),
+      supabase.from('monitoring_sessions').select('id').eq('floor_id',floor.id)
+    ]);
+    if(roomRes.error||itemRes.error||sessionRes.error){setError(roomRes.error?.message||itemRes.error?.message||sessionRes.error?.message);return;}
+    const counts=(roomRes.data?.length||0)+(itemRes.data?.length||0)+(sessionRes.data?.length||0);
+    if(counts){setError('Lantai tidak dapat dihapus karena masih memiliki ruangan, inventaris, atau riwayat monitoring. Pindahkan atau arsipkan data terkait terlebih dahulu.');return;}
+    if(!window.confirm('Hapus '+floor.name+'?'))return;
+    const {error}=await supabase.from('floors').delete().eq('id',floor.id);
+    if(error)setError(error.message);else await loadAll();
+  }
+  async function addRoom(floorId){
+    const name=(roomNames[floorId]||'').trim();if(!name)return;
+    setAddingRoom(v=>({...v,[floorId]:true}));setError('');
+    const {error}=await supabase.from('rooms').insert({floor_id:floorId,name});
+    if(error)setError(error.message);else{setRoomNames(v=>({...v,[floorId]:''}));await loadAll();}
+    setAddingRoom(v=>({...v,[floorId]:false}));
+  }
+  async function deleteRoom(room){
+    const {data:used,error:checkError}=await supabase.from('inventory_items').select('id').eq('room_id',room.id).limit(1);
+    if(checkError){setError(checkError.message);return;}
+    if(used?.length){setError('Ruangan masih digunakan oleh inventaris. Pindahkan inventaris ke ruangan lain terlebih dahulu.');return;}
+    if(!window.confirm('Hapus ruangan '+room.name+'?'))return;
+    const {error}=await supabase.from('rooms').delete().eq('id',room.id);
+    if(error)setError(error.message);else await loadAll();
+  }
+
   async function saveMonitoring(e){
     e.preventDefault(); if(!photo||!monitorItem){setError('Pilih barang dan foto bukti terlebih dahulu.');return;}
     setBusy(true);setError('');
@@ -62,7 +99,11 @@ function App(){
       {page==='Data Inventaris'&&<><div className="page-intro"><div><h1>Data Inventaris</h1><p>Kelola daftar aset dan lokasi barang rumah sakit.</p></div><button className="primary" onClick={()=>setShowAdd(true)}><Plus size={17}/> Tambah Barang</button></div><div className="panel"><div className="toolbar"><div className="search"><Search size={17}/><input placeholder="Cari nama, kode aset, atau lantai…" value={search} onChange={e=>setSearch(e.target.value)}/></div><span className="muted">{filtered.length} barang</span></div><div className="table-wrap"><table><thead><tr><th>KODE ASET</th><th>NAMA BARANG</th><th>KATEGORI</th><th>LOKASI</th><th>STATUS TERAKHIR</th></tr></thead><tbody>{filtered.map(x=><tr key={x.id}><td className="mono">{x.asset_code}</td><td><b>{x.name}</b></td><td>{x.category}</td><td>{x.floors?.name||'—'}</td><td><StatusPill value={latestByItem[x.id]?.status||'unchecked'}/></td></tr>)}</tbody></table>{!filtered.length&&<Empty text="Belum ada barang. Tambahkan inventaris pertama Anda."/>}</div></div></>}
       {page==='Monitoring Shift'&&<><div className="page-intro"><div><h1>Monitoring Shift</h1><p>Foto kondisi setiap barang sesuai daftar inventaris di lantai.</p></div></div><div className="monitor-grid"><form className="panel form-panel" onSubmit={saveMonitoring}><h3>Catat kondisi barang</h3><p className="muted">Identitas petugas, tanggal, dan waktu akan tercatat otomatis.</p><label>Lantai</label><select required value={monitor.floor_id} onChange={e=>setMonitor({...monitor,floor_id:e.target.value})}><option value="">Pilih lantai</option>{floors.map(f=><option key={f.id} value={f.id}>{f.name}</option>)}</select><label>Shift</label><select value={monitor.shift} onChange={e=>setMonitor({...monitor,shift:e.target.value})}>{['Pagi','Siang','Malam'].map(x=><option>{x}</option>)}</select><label>Pilih barang</label><select required value={monitorItem} onChange={e=>setMonitorItem(e.target.value)}><option value="">Pilih dari daftar inventaris</option>{items.filter(x=>!monitor.floor_id||x.floor_id===monitor.floor_id).map(x=><option key={x.id} value={x.id}>{x.asset_code} — {x.name}</option>)}</select><label>Kondisi barang</label><div className="choice-row">{[['present','Ada'],['missing','Tidak ada'],['borrowed','Dipinjam']].map(([v,l])=><button type="button" className={'choice '+(monitorStatus===v?'chosen':'')} onClick={()=>setMonitorStatus(v)}>{l}</button>)}</div><label>Foto bukti <em>* wajib</em></label><label className="upload-box"><Camera size={24}/><b>{photo?photo.name:'Ambil / pilih foto barang'}</b><small>JPG, PNG atau WEBP · Maksimal 10 MB</small><input type="file" accept="image/jpeg,image/png,image/webp" capture="environment" onChange={e=>setPhoto(e.target.files?.[0]||null)}/></label><label>Catatan {monitorStatus==='borrowed'&&<em>* nama peminjam</em>}</label><textarea value={notes} onChange={e=>setNotes(e.target.value)} required={monitorStatus==='borrowed'} placeholder={monitorStatus==='borrowed'?'Nama peminjam dan keterangan…':'Tambahkan keterangan bila diperlukan'}/><button className="primary full" disabled={busy}>{busy?'Menyimpan…':'Simpan hasil monitoring'}</button></form><div className="panel guide-panel"><div className="guide-icon"><ShieldCheck/></div><h3>Checklist monitoring</h3><p>Pastikan seluruh barang pada daftar lantai telah diperiksa.</p><ul><li>Foto harus jelas dan menunjukkan barang yang diperiksa.</li><li>Setiap barang dicatat satu kali per sesi shift.</li><li>Barang yang belum diperiksa tetap berstatus <b>Belum dimonitor</b>, bukan hilang.</li><li>Riwayat monitoring disimpan sebagai catatan audit.</li></ul><div className="guide-note"><Clock3 size={18}/><span>Waktu dan akun petugas dicatat otomatis oleh sistem.</span></div></div></div></>}
       {page==='Riwayat Monitoring'&&<><div className="page-intro"><div><h1>Riwayat Monitoring</h1><p>Rekam jejak pemeriksaan inventaris.</p></div></div><div className="panel table-wrap"><table><thead><tr><th>WAKTU</th><th>BARANG</th><th>LANTAI</th><th>SHIFT</th><th>PETUGAS</th><th>HASIL</th></tr></thead><tbody>{records.map(r=><tr key={r.id}><td>{new Date(r.recorded_at).toLocaleString('id-ID')}</td><td><b>{r.item_name_snapshot}</b><small className="block muted">{r.asset_code_snapshot}</small></td><td>{r.monitoring_sessions?.floors?.name||'—'}</td><td>{r.monitoring_sessions?.shift||'—'}</td><td>{r.profiles?.full_name||'—'}</td><td><StatusPill value={r.status}/></td></tr>)}</tbody></table>{!records.length&&<Empty text="Belum ada riwayat monitoring."/>}</div></>}
-      {page==='Lantai & Ruangan'&&<div className="panel"><h3>Daftar Lantai</h3><p className="muted">Lokasi yang terdaftar untuk inventaris.</p>{floors.map(f=><div className="activity" key={f.id}><Building2/><b>{f.name}</b><span className="muted">{items.filter(i=>i.floor_id===f.id).length} barang</span></div>)}</div>}
+      {page==='Lantai & Ruangan'&&<><div className="page-intro"><div><h1>Lantai & Ruangan</h1><p>Kelola lantai dan daftar ruangan pada setiap lantai.</p></div></div>
+      {canManageLocations&&<form className="panel location-add" onSubmit={addFloor}><div><h3>Tambah Lantai</h3><p className="muted">Buat lantai baru untuk pengelompokan inventaris.</p></div><div className="inline-add"><input value={newFloorName} onChange={e=>setNewFloorName(e.target.value)} placeholder="Contoh: Lantai 4" required/><button className="primary" disabled={addingFloor}><Plus size={16}/> Tambah Lantai</button></div></form>}
+      <div className="location-grid">{floors.map(f=><div className="panel floor-card" key={f.id}><div className="floor-heading"><div className="floor-icon"><Building2 size={21}/></div><div className="floor-title"><h3>{f.name}</h3><small>{items.filter(i=>i.floor_id===f.id).length} barang · {rooms.filter(r=>r.floor_id===f.id).length} ruangan</small></div>{canManageLocations&&<button className="icon-btn danger-icon" title="Hapus lantai" onClick={()=>deleteFloor(f)}><X size={17}/></button>}</div><div className="room-list">{rooms.filter(r=>r.floor_id===f.id).map(room=><div className="room-row" key={room.id}><span>{room.name}</span>{canManageLocations&&<button className="icon-btn danger-icon" title="Hapus ruangan" onClick={()=>deleteRoom(room)}><X size={15}/></button>}</div>)}{!rooms.some(r=>r.floor_id===f.id)&&<p className="empty-room">Belum ada ruangan di lantai ini.</p>}</div>{canManageLocations&&<div className="inline-add room-add"><input value={roomNames[f.id]||''} onChange={e=>setRoomNames(v=>({...v,[f.id]:e.target.value}))} placeholder="Nama ruangan, mis. IGD"/><button className="secondary" disabled={addingRoom[f.id]||!(roomNames[f.id]||'').trim()} onClick={()=>addRoom(f.id)}><Plus size={15}/> Ruangan</button></div>}</div>)}</div>
+      {!canManageLocations&&<p className="hint">Anda dapat melihat daftar lokasi. Hanya Super Admin dan Admin Inventaris yang dapat menambah atau menghapus lantai dan ruangan.</p>}
+      </>}
       {page==='Barang Dipinjam'&&<div className="panel"><h3>Barang Dipinjam</h3>{records.filter(r=>r.status==='borrowed').map(r=><div className="activity" key={r.id}><Archive/><div><b>{r.item_name_snapshot}</b><small>{r.notes||'Peminjam belum dicantumkan'}</small></div><StatusPill value="borrowed"/></div>)}{!records.some(r=>r.status==='borrowed')&&<Empty text="Tidak ada barang berstatus dipinjam pada data terbaru."/>}</div>}
       {page==='Laporan'&&<div className="panel"><h3>Ringkasan Laporan</h3><p className="muted">Ringkasan status berdasarkan monitoring terbaru per barang.</p><div className="stats-grid compact"><Stat label="Ada" value={stats.present} tone="green"/><Stat label="Tidak ada" value={stats.missing} tone="red"/><Stat label="Dipinjam" value={stats.borrowed} tone="amber"/><Stat label="Belum dimonitor" value={stats.unchecked} tone="gray"/></div></div>}
       {page==='Petugas'&&<div className="panel"><h3>Profil Petugas Aktif</h3><p className="muted">Daftar profil pengguna yang telah terdaftar.</p><div className="activity"><Users/><b>{profile?.full_name}</b><span className="muted">{profile?.role}</span></div><p className="hint">Penetapan administrator dilakukan melalui pengaturan aman di Supabase, bukan melalui formulir publik.</p></div>}
