@@ -12,7 +12,7 @@ function App(){
   const [loading,setLoading]=useState(true),[error,setError]=useState(''),[email,setEmail]=useState(''),[password,setPassword]=useState(''),[busy,setBusy]=useState(false);
   const [search,setSearch]=useState(''),[showAdd,setShowAdd]=useState(false),[newItem,setNewItem]=useState({asset_code:'',name:'',category:'Umum',floor_id:'',notes:''});
   const [newFloorName,setNewFloorName]=useState(''),[roomNames,setRoomNames]=useState({}),[addingFloor,setAddingFloor]=useState(false),[addingRoom,setAddingRoom]=useState({});
-  const [monitor,setMonitor]=useState({floor_id:'',shift:'Pagi'}),[photo,setPhoto]=useState(null),[photoPreview,setPhotoPreview]=useState(''),[monitorStatus,setMonitorStatus]=useState('present'),[monitorItem,setMonitorItem]=useState(''),[notes,setNotes]=useState('');
+  const [monitor,setMonitor]=useState({floor_id:'',shift:'Pagi'}),[checkPhotos,setCheckPhotos]=useState({}),[checkStatuses,setCheckStatuses]=useState({}),[checkNotes,setCheckNotes]=useState({}),[savingItem,setSavingItem]=useState('');
   useEffect(()=>{ if(!supabase){setLoading(false);return;} supabase.auth.getSession().then(({data})=>setSession(data.session)); const {data:{subscription}}=supabase.auth.onAuthStateChange((_e,s)=>setSession(s)); return ()=>subscription.unsubscribe(); },[]);
   useEffect(()=>{try{localStorage.setItem('sim-inventaris-rs:last-page',page);}catch{}try{const target='#'+encodeURIComponent(page);if(window.location.hash!==target)window.history.replaceState(null,'',target);}catch{}},[page]);
   useEffect(()=>{ if(session?.user) loadAll(); else {setProfile(null);setLoading(false);} },[session]);
@@ -25,7 +25,7 @@ function App(){
         supabase.from('inventory_items').select('*, floors(name)').eq('is_active',true).order('name'),
         supabase.from('floors').select('*').eq('is_active',true).order('sort_order'),
         supabase.from('rooms').select('*, floors(name)').eq('is_active',true).order('name'),
-        supabase.from('monitoring_records').select('*, inventory_items(name,asset_code), monitoring_sessions(monitoring_date,shift,floors(name)), profiles!monitoring_records_recorded_by_profile_fkey(full_name)').order('recorded_at',{ascending:false}).limit(100),
+        supabase.from('monitoring_records').select('*, inventory_items(name,asset_code), monitoring_sessions(monitoring_date,shift,floor_id,floors(name)), profiles!monitoring_records_recorded_by_profile_fkey(full_name)').order('recorded_at',{ascending:false}).limit(1000),
         supabase.from('monitoring_sessions').select('*, floors(name)').order('started_at',{ascending:false}).limit(30)
       ]);
       if(p.error) throw p.error; if(i.error) throw i.error; if(f.error) throw f.error;
@@ -88,38 +88,40 @@ function App(){
     if(error)setError(error.message);else await loadAll();
   }
 
-  async function saveMonitoring(e){
-    e.preventDefault();
-    if(!monitor.floor_id||!monitorItem){setError('Pilih lantai dan barang terlebih dahulu.');return;}
-    if(!photo){setError('Foto bukti belum dipilih. Ambil atau pilih foto sebelum menyimpan.');return;}
-    if(!['image/jpeg','image/png','image/webp'].includes(photo.type)){setError('Format foto tidak didukung. Gunakan JPG, PNG, atau WEBP.');return;}
-    if(photo.size>10*1024*1024){setError('Ukuran foto melebihi 10 MB. Pilih foto yang lebih kecil.');return;}
-    const item=items.find(x=>x.id===monitorItem);
-    if(!item){setError('Barang tidak ditemukan. Muat ulang data inventaris lalu coba lagi.');return;}
-    setBusy(true);setError('');
-    let stage='membuat sesi monitoring';
+  function localDateString(){
+    const d=new Date();return [d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-');
+  }
+  const today=localDateString();
+  const completedForSelection=records.filter(r=>r.monitoring_sessions?.monitoring_date===today&&r.monitoring_sessions?.floor_id===monitor.floor_id&&r.monitoring_sessions?.shift===monitor.shift);
+  const completedIds=new Set(completedForSelection.map(r=>r.inventory_item_id));
+  const checklistItems=items.filter(x=>x.floor_id===monitor.floor_id);
+  const pendingItems=checklistItems.filter(x=>!completedIds.has(x.id));
+  async function saveMonitoringItem(item){
+    const photo=checkPhotos[item.id],status=checkStatuses[item.id]||'present',notes=checkNotes[item.id]||'';
+    if(!photo){setError('Pilih foto bukti untuk '+item.name+' terlebih dahulu.');return;}
+    if(!['image/jpeg','image/png','image/webp'].includes(photo.type)){setError('Format foto harus JPG, PNG, atau WEBP.');return;}
+    if(photo.size>10*1024*1024){setError('Ukuran foto maksimal 10 MB.');return;}
+    if(status==='borrowed'&&!notes.trim()){setError('Isi nama peminjam pada catatan untuk barang yang dipinjam.');return;}
+    setSavingItem(item.id);setError('');
     try{
-      const today=new Date().toLocaleDateString('en-CA');
-      let sess=sessions.find(x=>x.floor_id===monitor.floor_id&&x.monitoring_date===today&&x.shift===monitor.shift&&x.status==='draft');
+      let sess=sessions.find(x=>x.floor_id===monitor.floor_id&&x.monitoring_date===today&&x.shift===monitor.shift&&x.status==='draft'&&x.started_by===session.user.id);
       if(!sess){
         const {data,error}=await supabase.from('monitoring_sessions').insert({floor_id:monitor.floor_id,shift:monitor.shift,started_by:session.user.id}).select().single();
-        if(error)throw new Error('Gagal membuat sesi monitoring: '+error.message);
+        if(error)throw new Error('Gagal membuat sesi: '+error.message);
         sess=data;
       }
-      stage='mengunggah foto ke penyimpanan';
       const ext=photo.type==='image/png'?'png':photo.type==='image/webp'?'webp':'jpg';
-      const path=session.user.id+'/'+sess.id+'/'+monitorItem+'-'+Date.now()+'.'+ext;
+      const path=session.user.id+'/'+sess.id+'/'+item.id+'-'+Date.now()+'.'+ext;
       const up=await supabase.storage.from('monitoring-photos').upload(path,photo,{contentType:photo.type,upsert:false,cacheControl:'3600'});
-      if(up.error)throw new Error('Foto gagal diunggah: '+up.error.message);
-      stage='menyimpan catatan monitoring';
-      const {error}=await supabase.from('monitoring_records').insert({session_id:sess.id,inventory_item_id:item.id,item_name_snapshot:item.name,asset_code_snapshot:item.asset_code,status:monitorStatus,photo_path:path,notes,borrowed_to:monitorStatus==='borrowed'?notes:null,recorded_by:session.user.id});
-      if(error)throw new Error('Foto sudah terunggah, tetapi catatan monitoring gagal disimpan: '+error.message+'. Hubungi administrator agar foto dapat ditautkan.');
-      setPhoto(null);setNotes('');setMonitorItem('');
+      if(up.error)throw new Error('Upload foto gagal: '+up.error.message);
+      const {error}=await supabase.from('monitoring_records').insert({session_id:sess.id,inventory_item_id:item.id,item_name_snapshot:item.name,asset_code_snapshot:item.asset_code,status,photo_path:path,notes,borrowed_to:status==='borrowed'?notes:null,recorded_by:session.user.id});
+      if(error)throw new Error('Foto terunggah tetapi catatan gagal disimpan: '+error.message);
+      setCheckPhotos(v=>{const n={...v};delete n[item.id];return n;});
+      setCheckNotes(v=>({...v,[item.id]:''}));
       await loadAll();
-      setError('Monitoring berhasil disimpan beserta foto bukti.');
-    }catch(e){
-      setError(e.message||('Terjadi kendala saat '+stage+'.'));
-    }finally{setBusy(false);}
+      setError('Monitoring '+item.name+' berhasil disimpan.');
+    }catch(e){setError(e.message||'Gagal menyimpan monitoring.');}
+    finally{setSavingItem('');}
   }
   const latestByItem=useMemo(()=>{const m={};records.forEach(r=>{if(!m[r.inventory_item_id])m[r.inventory_item_id]=r;});return m;},[records]);
   const stats=useMemo(()=>{const vals=Object.values(latestByItem);return {present:vals.filter(x=>x.status==='present').length,missing:vals.filter(x=>x.status==='missing').length,borrowed:vals.filter(x=>x.status==='borrowed').length,unchecked:Math.max(0,items.length-vals.length)};},[items,latestByItem]);
@@ -136,7 +138,17 @@ function App(){
       <Stat icon={Package} label="Total Inventaris" value={fmt(items.length)} tone="teal"/><Stat icon={CheckCircle2} label="Ada" value={fmt(stats.present)} tone="green"/><Stat icon={AlertCircle} label="Tidak Ada" value={fmt(stats.missing)} tone="red"/><Stat icon={Archive} label="Dipinjam" value={fmt(stats.borrowed)} tone="amber"/></div>
       <div className="two-col"><div className="panel"><div className="panel-head"><div><h3>Status Inventaris Terpantau</h3><p>Data terbaru dari monitoring terakhir per barang</p></div><span className="pill">Live data</span></div><div className="status-list"><Status label="Ada" value={stats.present} total={items.length} color="green"/><Status label="Tidak ada" value={stats.missing} total={items.length} color="red"/><Status label="Dipinjam" value={stats.borrowed} total={items.length} color="amber"/><Status label="Belum dimonitor" value={stats.unchecked} total={items.length} color="gray"/></div></div><div className="panel"><div className="panel-head"><div><h3>Monitoring Terbaru</h3><p>Aktivitas pencatatan terakhir</p></div><button className="link-btn" onClick={()=>setPage('Riwayat Monitoring')}>Lihat semua</button></div>{records.slice(0,4).map(r=><div className="activity" key={r.id}><div className="activity-icon"><ClipboardCheck size={17}/></div><div><b>{r.item_name_snapshot}</b><small>{new Date(r.recorded_at).toLocaleString('id-ID')} · {r.profiles?.full_name||'Petugas'}</small></div><StatusPill value={r.status}/></div>)}{!records.length&&<Empty text="Belum ada aktivitas monitoring."/>}</div></div></>}
       {page==='Data Inventaris'&&<><div className="page-intro"><div><h1>Data Inventaris</h1><p>Kelola daftar aset dan lokasi barang rumah sakit.</p></div><button className="primary" onClick={()=>setShowAdd(true)}><Plus size={17}/> Tambah Barang</button></div><div className="panel"><div className="toolbar"><div className="search"><Search size={17}/><input placeholder="Cari nama, kode aset, atau lantai…" value={search} onChange={e=>setSearch(e.target.value)}/></div><span className="muted">{filtered.length} barang</span></div><div className="table-wrap"><table><thead><tr><th>KODE ASET</th><th>NAMA BARANG</th><th>KATEGORI</th><th>LOKASI</th><th>STATUS TERAKHIR</th></tr></thead><tbody>{filtered.map(x=><tr key={x.id}><td className="mono">{x.asset_code}</td><td><b>{x.name}</b></td><td>{x.category}</td><td>{x.floors?.name||'—'}</td><td><StatusPill value={latestByItem[x.id]?.status||'unchecked'}/></td></tr>)}</tbody></table>{!filtered.length&&<Empty text="Belum ada barang. Tambahkan inventaris pertama Anda."/>}</div></div></>}
-      {page==='Monitoring Shift'&&<><div className="page-intro"><div><h1>Monitoring Shift</h1><p>Foto kondisi setiap barang sesuai daftar inventaris di lantai.</p></div></div><div className="monitor-grid"><form className="panel form-panel" onSubmit={saveMonitoring}><h3>Catat kondisi barang</h3><p className="muted">Identitas petugas, tanggal, dan waktu akan tercatat otomatis.</p><label>Lantai</label><select required value={monitor.floor_id} onChange={e=>setMonitor({...monitor,floor_id:e.target.value})}><option value="">Pilih lantai</option>{floors.map(f=><option key={f.id} value={f.id}>{f.name}</option>)}</select><label>Shift</label><select value={monitor.shift} onChange={e=>setMonitor({...monitor,shift:e.target.value})}>{['Pagi','Siang','Malam'].map(x=><option>{x}</option>)}</select><label>Pilih barang</label><select required value={monitorItem} onChange={e=>setMonitorItem(e.target.value)}><option value="">Pilih dari daftar inventaris</option>{items.filter(x=>!monitor.floor_id||x.floor_id===monitor.floor_id).map(x=><option key={x.id} value={x.id}>{x.asset_code} — {x.name}</option>)}</select><label>Kondisi barang</label><div className="choice-row">{[['present','Ada'],['missing','Tidak ada'],['borrowed','Dipinjam']].map(([v,l])=><button type="button" className={'choice '+(monitorStatus===v?'chosen':'')} onClick={()=>setMonitorStatus(v)}>{l}</button>)}</div><label>Foto bukti <em>* wajib</em></label><label className="upload-box">{photoPreview?<img className="photo-preview" src={photoPreview} alt="Pratinjau foto bukti"/>:<Camera size={24}/>}<b>{photo?photo.name:'Ambil / pilih foto barang'}</b><small>JPG, PNG atau WEBP · Maksimal 10 MB</small><input type="file" accept="image/jpeg,image/png,image/webp" capture="environment" onChange={e=>{const file=e.target.files?.[0]||null;if(file&&(!['image/jpeg','image/png','image/webp'].includes(file.type)||file.size>10*1024*1024)){setPhoto(null);setError(file.size>10*1024*1024?'Ukuran foto melebihi 10 MB.':'Format foto harus JPG, PNG, atau WEBP.');e.target.value='';return;}setError('');setPhoto(file);}}/></label><label>Catatan {monitorStatus==='borrowed'&&<em>* nama peminjam</em>}</label><textarea value={notes} onChange={e=>setNotes(e.target.value)} required={monitorStatus==='borrowed'} placeholder={monitorStatus==='borrowed'?'Nama peminjam dan keterangan…':'Tambahkan keterangan bila diperlukan'}/><button className="primary full" disabled={busy}>{busy?'Menyimpan…':'Simpan hasil monitoring'}</button></form><div className="panel guide-panel"><div className="guide-icon"><ShieldCheck/></div><h3>Checklist monitoring</h3><p>Pastikan seluruh barang pada daftar lantai telah diperiksa.</p><ul><li>Foto harus jelas dan menunjukkan barang yang diperiksa.</li><li>Setiap barang dicatat satu kali per sesi shift.</li><li>Barang yang belum diperiksa tetap berstatus <b>Belum dimonitor</b>, bukan hilang.</li><li>Riwayat monitoring disimpan sebagai catatan audit.</li></ul><div className="guide-note"><Clock3 size={18}/><span>Waktu dan akun petugas dicatat otomatis oleh sistem.</span></div></div></div></>}
+      {page==='Monitoring Shift'&&<><div className="page-intro"><div><h1>Monitoring Shift</h1><p>Pilih lantai dan shift. Sistem menampilkan inventaris yang belum diperiksa hari ini.</p></div></div>
+      <div className="panel form-panel checklist-filter"><div className="filter-grid"><div><label>Lantai</label><select value={monitor.floor_id} onChange={e=>setMonitor(v=>({...v,floor_id:e.target.value}))}><option value="">Pilih lantai</option>{floors.map(f=><option key={f.id} value={f.id}>{f.name}</option>)}</select></div><div><label>Shift</label><select value={monitor.shift} onChange={e=>setMonitor(v=>({...v,shift:e.target.value}))}>{['Pagi','Siang','Malam'].map(x=><option key={x}>{x}</option>)}</select></div></div></div>
+      {monitor.floor_id&&<><div className="checklist-summary"><div><b>{pendingItems.length}</b><span>Belum dimonitor</span></div><div><b>{completedIds.size}</b><span>Selesai</span></div><div><b>{checklistItems.length}</b><span>Total barang</span></div></div>
+      {pendingItems.length===0?<div className="panel checklist-empty"><CheckCircle2 size={34}/><h3>Monitoring shift selesai</h3><p>Semua inventaris di lantai ini sudah diperiksa untuk shift {monitor.shift} hari ini.</p></div>:
+      <div className="checklist-list">{pendingItems.map(item=><div className="panel checklist-card" key={item.id}><div className="checklist-item-head"><div><small>{item.asset_code}</small><h3>{item.name}</h3><span>{item.category||'Umum'}</span></div><span className="pending-pill">Belum diperiksa</span></div>
+      <label>Kondisi barang</label><div className="choice-row">{[['present','Ada'],['missing','Tidak ada'],['borrowed','Dipinjam']].map(([v,l])=><button type="button" className={'choice '+((checkStatuses[item.id]||'present')===v?'chosen':'')} onClick={()=>setCheckStatuses(s=>({...s,[item.id]:v}))}>{l}</button>)}</div>
+      <label>Foto bukti <em>* wajib</em></label><label className="upload-box checklist-upload">{checkPhotos[item.id]?<span className="photo-file-name">{checkPhotos[item.id].name}</span>:<Camera size={22}/>}<b>{checkPhotos[item.id]?'Foto siap diunggah':'Ambil / pilih foto barang'}</b><small>JPG, PNG atau WEBP · Maksimal 10 MB</small><input type="file" accept="image/jpeg,image/png,image/webp" capture="environment" onChange={e=>{const file=e.target.files?.[0]||null;if(file&&(!['image/jpeg','image/png','image/webp'].includes(file.type)||file.size>10*1024*1024)){setError(file.size>10*1024*1024?'Ukuran foto maksimal 10 MB.':'Format foto harus JPG, PNG, atau WEBP.');e.target.value='';return;}setError('');setCheckPhotos(s=>({...s,[item.id]:file}));}}/></label>
+      <label>Catatan {checkStatuses[item.id]==='borrowed'&&<em>* nama peminjam</em>}</label><textarea value={checkNotes[item.id]||''} onChange={e=>setCheckNotes(s=>({...s,[item.id]:e.target.value}))} placeholder={checkStatuses[item.id]==='borrowed'?'Nama peminjam dan keterangan…':'Tambahkan catatan bila diperlukan'}/>
+      <button className="primary full" type="button" disabled={savingItem===item.id||!!savingItem} onClick={()=>saveMonitoringItem(item)}>{savingItem===item.id?'Menyimpan foto & hasil…':'Simpan hasil pemeriksaan'}</button></div>)}</div>}
+      <div className="panel guide-panel"><h3>Checklist monitoring</h3><p>Daftar hanya menampilkan barang yang belum diperiksa untuk tanggal dan shift yang dipilih. Setiap barang disimpan satu per satu beserta foto, kondisi, catatan, petugas, dan waktu.</p></div></>}
+      {!monitor.floor_id&&<div className="panel checklist-empty"><ClipboardCheck size={32}/><h3>Mulai monitoring</h3><p>Pilih lantai dan shift untuk menampilkan daftar inventaris yang perlu diperiksa.</p></div>}</>}
       {page==='Riwayat Monitoring'&&<><div className="page-intro"><div><h1>Riwayat Monitoring</h1><p>Rekam jejak pemeriksaan inventaris.</p></div></div><div className="panel table-wrap"><table><thead><tr><th>WAKTU</th><th>BARANG</th><th>LANTAI</th><th>SHIFT</th><th>PETUGAS</th><th>HASIL</th></tr></thead><tbody>{records.map(r=><tr key={r.id}><td>{new Date(r.recorded_at).toLocaleString('id-ID')}</td><td><b>{r.item_name_snapshot}</b><small className="block muted">{r.asset_code_snapshot}</small></td><td>{r.monitoring_sessions?.floors?.name||'—'}</td><td>{r.monitoring_sessions?.shift||'—'}</td><td>{r.profiles?.full_name||'—'}</td><td><StatusPill value={r.status}/></td></tr>)}</tbody></table>{!records.length&&<Empty text="Belum ada riwayat monitoring."/>}</div></>}
       {page==='Lantai & Ruangan'&&<><div className="page-intro"><div><h1>Lantai & Ruangan</h1><p>Kelola lantai dan daftar ruangan pada setiap lantai.</p></div></div>
       {canManageLocations&&<form className="panel location-add" onSubmit={addFloor}><div><h3>Tambah Lantai</h3><p className="muted">Buat lantai baru untuk pengelompokan inventaris.</p></div><div className="inline-add"><input value={newFloorName} onChange={e=>setNewFloorName(e.target.value)} placeholder="Contoh: Lantai 4" required/><button className="primary" disabled={addingFloor}><Plus size={16}/> Tambah Lantai</button></div></form>}
