@@ -28,3 +28,7 @@
 .secondary{display:inline-flex;align-items:center;justify-content:center;gap:6px;white-space:nowrap;background:#e8f5f2;color:#087f73;border:0;border-radius:8px;padding:10px 12px;font-size:11px;font-weight:700}
 .secondary:disabled{opacity:.45;cursor:not-allowed}
 @media(max-width:760px){.location-add{align-items:stretch;flex-direction:column}.location-add .inline-add{width:100%}.location-grid{grid-template-columns:1fr}.room-add{align-items:stretch}.room-add .secondary{padding:10px}.floor-card{padding:16px}}
+
+.edit-icon{color:#168879}
+.edit-icon:hover{background:#e8f5f2;color:#087f73}
+.room-actions{display:flex;align-items:center;gap:2px}
