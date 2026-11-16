@@ -34,3 +34,26 @@
 .room-actions{display:flex;align-items:center;gap:2px}
 
 .photo-preview{display:block;width:min(100%,260px);max-height:190px;object-fit:contain;border-radius:9px;margin:0 auto 8px}
+
+/* Per-shift pending inventory checklist */
+.checklist-filter{margin-bottom:16px}
+.filter-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.filter-grid>div{min-width:0}
+.checklist-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:0 0 16px}
+.checklist-summary>div{display:flex;flex-direction:column;gap:4px;padding:15px 17px;background:#fff;border:1px solid #e3ebed;border-radius:13px}
+.checklist-summary b{font-size:23px;color:#087f73}
+.checklist-summary span{font-size:11px;color:#819196}
+.checklist-list{display:grid;gap:14px}
+.checklist-card{margin:0}
+.checklist-item-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:18px;padding-bottom:14px;border-bottom:1px solid #edf1f2}
+.checklist-item-head small{font-size:10px;color:#87989d;font-weight:700;letter-spacing:.04em}
+.checklist-item-head h3{margin:4px 0 5px}
+.checklist-item-head span:not(.pending-pill){font-size:11px;color:#87989d}
+.pending-pill{font-size:10px;font-weight:700;color:#946b22;background:#fff6df;padding:6px 9px;border-radius:20px;white-space:nowrap}
+.checklist-card>label{display:block;margin:14px 0 8px;font-size:12px;font-weight:700;color:#50646a}
+.checklist-upload{margin-bottom:14px}
+.checklist-empty{display:flex;flex-direction:column;align-items:center;text-align:center;padding:32px 22px;color:#168879}
+.checklist-empty h3{color:#263c43;margin:12px 0 5px}
+.checklist-empty p{color:#89999d;font-size:12px;max-width:420px;margin:0}
+.photo-file-name{font-size:11px;color:#087f73;overflow-wrap:anywhere}
+@media(max-width:760px){.filter-grid{grid-template-columns:1fr}.checklist-summary{gap:7px}.checklist-summary>div{padding:12px 10px}.checklist-summary b{font-size:20px}.checklist-summary span{font-size:10px}.checklist-item-head{gap:7px}.pending-pill{font-size:9px;padding:5px 7px}}
