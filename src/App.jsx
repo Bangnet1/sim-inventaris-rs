@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from './lib/supabase';
-import { Activity, Archive, BarChart3, Building2, Camera, ClipboardCheck, Clock3, LayoutDashboard, LogOut, Menu, Package, Search, Settings, ShieldCheck, Users, X, Plus, ChevronDown, AlertCircle, CheckCircle2, RefreshCw } from 'lucide-react';
+import { Activity, Archive, BarChart3, Building2, Camera, ClipboardCheck, Clock3, LayoutDashboard, LogOut, Menu, Package, Search, Settings, ShieldCheck, Users, X, Plus, Pencil, ChevronDown, AlertCircle, CheckCircle2, RefreshCw } from 'lucide-react';
 
 const nav = [
   ['Dashboard',LayoutDashboard],['Monitoring Shift',ClipboardCheck],['Data Inventaris',Package],['Lantai & Ruangan',Building2],['Barang Dipinjam',Archive],['Riwayat Monitoring',Clock3],['Laporan',BarChart3],['Petugas',Users]
@@ -42,6 +42,14 @@ function App(){
     if(error)setError(error.message);else{setNewFloorName('');await loadAll();}
     setAddingFloor(false);
   }
+  async function editFloor(floor){
+    const next=window.prompt('Ubah nama lantai:',floor.name);
+    if(next===null)return;
+    const name=next.trim();if(!name||name===floor.name)return;
+    setError('');
+    const {error}=await supabase.from('floors').update({name}).eq('id',floor.id);
+    if(error)setError(error.message);else await loadAll();
+  }
   async function deleteFloor(floor){
     const [roomRes,itemRes,sessionRes]=await Promise.all([
       supabase.from('rooms').select('id').eq('floor_id',floor.id),
@@ -61,6 +69,14 @@ function App(){
     const {error}=await supabase.from('rooms').insert({floor_id:floorId,name});
     if(error)setError(error.message);else{setRoomNames(v=>({...v,[floorId]:''}));await loadAll();}
     setAddingRoom(v=>({...v,[floorId]:false}));
+  }
+  async function editRoom(room){
+    const next=window.prompt('Ubah nama ruangan:',room.name);
+    if(next===null)return;
+    const name=next.trim();if(!name||name===room.name)return;
+    setError('');
+    const {error}=await supabase.from('rooms').update({name}).eq('id',room.id);
+    if(error)setError(error.message);else await loadAll();
   }
   async function deleteRoom(room){
     const {data:used,error:checkError}=await supabase.from('inventory_items').select('id').eq('room_id',room.id).limit(1);
@@ -104,7 +120,7 @@ function App(){
       {page==='Riwayat Monitoring'&&<><div className="page-intro"><div><h1>Riwayat Monitoring</h1><p>Rekam jejak pemeriksaan inventaris.</p></div></div><div className="panel table-wrap"><table><thead><tr><th>WAKTU</th><th>BARANG</th><th>LANTAI</th><th>SHIFT</th><th>PETUGAS</th><th>HASIL</th></tr></thead><tbody>{records.map(r=><tr key={r.id}><td>{new Date(r.recorded_at).toLocaleString('id-ID')}</td><td><b>{r.item_name_snapshot}</b><small className="block muted">{r.asset_code_snapshot}</small></td><td>{r.monitoring_sessions?.floors?.name||'—'}</td><td>{r.monitoring_sessions?.shift||'—'}</td><td>{r.profiles?.full_name||'—'}</td><td><StatusPill value={r.status}/></td></tr>)}</tbody></table>{!records.length&&<Empty text="Belum ada riwayat monitoring."/>}</div></>}
       {page==='Lantai & Ruangan'&&<><div className="page-intro"><div><h1>Lantai & Ruangan</h1><p>Kelola lantai dan daftar ruangan pada setiap lantai.</p></div></div>
       {canManageLocations&&<form className="panel location-add" onSubmit={addFloor}><div><h3>Tambah Lantai</h3><p className="muted">Buat lantai baru untuk pengelompokan inventaris.</p></div><div className="inline-add"><input value={newFloorName} onChange={e=>setNewFloorName(e.target.value)} placeholder="Contoh: Lantai 4" required/><button className="primary" disabled={addingFloor}><Plus size={16}/> Tambah Lantai</button></div></form>}
-      <div className="location-grid">{floors.map(f=><div className="panel floor-card" key={f.id}><div className="floor-heading"><div className="floor-icon"><Building2 size={21}/></div><div className="floor-title"><h3>{f.name}</h3><small>{items.filter(i=>i.floor_id===f.id).length} barang · {rooms.filter(r=>r.floor_id===f.id).length} ruangan</small></div>{canManageLocations&&<button className="icon-btn danger-icon" title="Hapus lantai" onClick={()=>deleteFloor(f)}><X size={17}/></button>}</div><div className="room-list">{rooms.filter(r=>r.floor_id===f.id).map(room=><div className="room-row" key={room.id}><span>{room.name}</span>{canManageLocations&&<button className="icon-btn danger-icon" title="Hapus ruangan" onClick={()=>deleteRoom(room)}><X size={15}/></button>}</div>)}{!rooms.some(r=>r.floor_id===f.id)&&<p className="empty-room">Belum ada ruangan di lantai ini.</p>}</div>{canManageLocations&&<div className="inline-add room-add"><input value={roomNames[f.id]||''} onChange={e=>setRoomNames(v=>({...v,[f.id]:e.target.value}))} placeholder="Nama ruangan, mis. IGD"/><button className="secondary" disabled={addingRoom[f.id]||!(roomNames[f.id]||'').trim()} onClick={()=>addRoom(f.id)}><Plus size={15}/> Ruangan</button></div>}</div>)}</div>
+      <div className="location-grid">{floors.map(f=><div className="panel floor-card" key={f.id}><div className="floor-heading"><div className="floor-icon"><Building2 size={21}/></div><div className="floor-title"><h3>{f.name}</h3><small>{items.filter(i=>i.floor_id===f.id).length} barang · {rooms.filter(r=>r.floor_id===f.id).length} ruangan</small></div>{canManageLocations&&<><button className="icon-btn edit-icon" title="Edit nama lantai" onClick={()=>editFloor(f)}><Pencil size={16}/></button><button className="icon-btn danger-icon" title="Hapus lantai" onClick={()=>deleteFloor(f)}><X size={17}/></button></>}</div><div className="room-list">{rooms.filter(r=>r.floor_id===f.id).map(room=><div className="room-row" key={room.id}><span>{room.name}</span>{canManageLocations&&<div className="room-actions"><button className="icon-btn edit-icon" title="Edit nama ruangan" onClick={()=>editRoom(room)}><Pencil size={14}/></button><button className="icon-btn danger-icon" title="Hapus ruangan" onClick={()=>deleteRoom(room)}><X size={15}/></button></div>}</div>)}{!rooms.some(r=>r.floor_id===f.id)&&<p className="empty-room">Belum ada ruangan di lantai ini.</p>}</div>{canManageLocations&&<div className="inline-add room-add"><input value={roomNames[f.id]||''} onChange={e=>setRoomNames(v=>({...v,[f.id]:e.target.value}))} placeholder="Nama ruangan, mis. IGD"/><button className="secondary" disabled={addingRoom[f.id]||!(roomNames[f.id]||'').trim()} onClick={()=>addRoom(f.id)}><Plus size={15}/> Ruangan</button></div>}</div>)}</div>
       {!canManageLocations&&<p className="hint">Anda dapat melihat daftar lokasi. Hanya Super Admin dan Admin Inventaris yang dapat menambah atau menghapus lantai dan ruangan.</p>}
       </>}
       {page==='Barang Dipinjam'&&<div className="panel"><h3>Barang Dipinjam</h3>{records.filter(r=>r.status==='borrowed').map(r=><div className="activity" key={r.id}><Archive/><div><b>{r.item_name_snapshot}</b><small>{r.notes||'Peminjam belum dicantumkan'}</small></div><StatusPill value="borrowed"/></div>)}{!records.some(r=>r.status==='borrowed')&&<Empty text="Tidak ada barang berstatus dipinjam pada data terbaru."/>}</div>}
