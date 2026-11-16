@@ -149,7 +149,8 @@ function App(){
       setCheckPhotos(v=>{const n={...v};delete n[item.id];return n;});
       setCheckNotes(v=>({...v,[item.id]:''}));
       await loadAll();
-      const savedKb=Math.round(compressedPhoto.size/1024),originalKb=Math.round(originalSize/1024);\n      setError('Monitoring '+item.name+' berhasil disimpan. Ukuran foto '+originalKb+' KB → '+savedKb+' KB.');
+      const savedKb=Math.round(compressedPhoto.size/1024),originalKb=Math.round(originalSize/1024);
+      setError('Monitoring '+item.name+' berhasil disimpan. Ukuran foto '+originalKb+' KB → '+savedKb+' KB.');
     }catch(e){setError(e.message||'Gagal menyimpan monitoring.');}
     finally{setSavingItem('');}
   }
