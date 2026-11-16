@@ -15,7 +15,8 @@ function App(){
   const [monitor,setMonitor]=useState({floor_id:'',shift:'Pagi'}),[photo,setPhoto]=useState(null),[photoPreview,setPhotoPreview]=useState(''),[monitorStatus,setMonitorStatus]=useState('present'),[monitorItem,setMonitorItem]=useState(''),[notes,setNotes]=useState('');
   useEffect(()=>{ if(!supabase){setLoading(false);return;} supabase.auth.getSession().then(({data})=>setSession(data.session)); const {data:{subscription}}=supabase.auth.onAuthStateChange((_e,s)=>setSession(s)); return ()=>subscription.unsubscribe(); },[]);
   useEffect(()=>{try{localStorage.setItem('sim-inventaris-rs:last-page',page);}catch{}try{const target='#'+encodeURIComponent(page);if(window.location.hash!==target)window.history.replaceState(null,'',target);}catch{}},[page]);
-  useEffect(()=>{ if(session?.user) loadAll(); else {setProfile(null);setLoading(false);} },[session]);\n  useEffect(()=>{if(!photo){setPhotoPreview('');return;}const url=URL.createObjectURL(photo);setPhotoPreview(url);return()=>URL.revokeObjectURL(url);},[photo]);
+  useEffect(()=>{ if(session?.user) loadAll(); else {setProfile(null);setLoading(false);} },[session]);
+  useEffect(()=>{if(!photo){setPhotoPreview('');return;}const url=URL.createObjectURL(photo);setPhotoPreview(url);return()=>URL.revokeObjectURL(url);},[photo]);
   async function loadAll(){
     setLoading(true);setError('');
     try{
