@@ -7,14 +7,14 @@ const nav = [
 ];
 const fmt = n => new Intl.NumberFormat('id-ID').format(n || 0);
 function App(){
-  const [session,setSession]=useState(null),[profile,setProfile]=useState(null),[page,setPage]=useState(()=>{try{return localStorage.getItem('sim-inventaris-rs:last-page')||'Dashboard';}catch{return 'Dashboard';}}),[mobile,setMobile]=useState(false);
+  const [session,setSession]=useState(null),[profile,setProfile]=useState(null),[page,setPage]=useState(()=>{const valid=['Dashboard','Monitoring Shift','Data Inventaris','Lantai & Ruangan','Barang Dipinjam','Riwayat Monitoring','Laporan','Petugas'];try{const fromHash=decodeURIComponent(window.location.hash.replace(/^#/,''));const saved=localStorage.getItem('sim-inventaris-rs:last-page');return valid.includes(fromHash)?fromHash:(valid.includes(saved)?saved:'Dashboard');}catch{return 'Dashboard';}}),[mobile,setMobile]=useState(false);
   const [items,setItems]=useState([]),[floors,setFloors]=useState([]),[rooms,setRooms]=useState([]),[records,setRecords]=useState([]),[sessions,setSessions]=useState([]);
   const [loading,setLoading]=useState(true),[error,setError]=useState(''),[email,setEmail]=useState(''),[password,setPassword]=useState(''),[busy,setBusy]=useState(false);
   const [search,setSearch]=useState(''),[showAdd,setShowAdd]=useState(false),[newItem,setNewItem]=useState({asset_code:'',name:'',category:'Umum',floor_id:'',notes:''});
   const [newFloorName,setNewFloorName]=useState(''),[roomNames,setRoomNames]=useState({}),[addingFloor,setAddingFloor]=useState(false),[addingRoom,setAddingRoom]=useState({});
   const [monitor,setMonitor]=useState({floor_id:'',shift:'Pagi'}),[photo,setPhoto]=useState(null),[monitorStatus,setMonitorStatus]=useState('present'),[monitorItem,setMonitorItem]=useState(''),[notes,setNotes]=useState('');
   useEffect(()=>{ if(!supabase){setLoading(false);return;} supabase.auth.getSession().then(({data})=>setSession(data.session)); const {data:{subscription}}=supabase.auth.onAuthStateChange((_e,s)=>setSession(s)); return ()=>subscription.unsubscribe(); },[]);
-  useEffect(()=>{try{localStorage.setItem('sim-inventaris-rs:last-page',page);}catch{}},[page]);
+  useEffect(()=>{try{localStorage.setItem('sim-inventaris-rs:last-page',page);}catch{}try{const target='#'+encodeURIComponent(page);if(window.location.hash!==target)window.history.replaceState(null,'',target);}catch{}},[page]);
   useEffect(()=>{ if(session?.user) loadAll(); else {setProfile(null);setLoading(false);} },[session]);
   async function loadAll(){
     setLoading(true);setError('');
@@ -23,6 +23,7 @@ function App(){
         supabase.from('profiles').select('*').eq('id',session.user.id).single(),
         supabase.from('inventory_items').select('*, floors(name)').eq('is_active',true).order('name'),
         supabase.from('floors').select('*').eq('is_active',true).order('sort_order'),
+        supabase.from('rooms').select('*, floors(name)').eq('is_active',true).order('name'),
         supabase.from('monitoring_records').select('*, inventory_items(name,asset_code), monitoring_sessions(monitoring_date,shift,floors(name)), profiles!monitoring_records_recorded_by_profile_fkey(full_name)').order('recorded_at',{ascending:false}).limit(100),
         supabase.from('monitoring_sessions').select('*, floors(name)').order('started_at',{ascending:false}).limit(30)
       ]);
