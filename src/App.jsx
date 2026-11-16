@@ -7,12 +7,12 @@ const nav = [
 ];
 const fmt = n => new Intl.NumberFormat('id-ID').format(n || 0);
 function App(){
-  const [session,setSession]=useState(null),[profile,setProfile]=useState(null),[page,setPage]=useState('Dashboard'),[mobile,setMobile]=useState(false);
+  const [session,setSession]=useState(null),[profile,setProfile]=useState(null),[page,setPage]=useState(()=>{try{return localStorage.getItem('sim-inventaris-rs:last-page')||'Dashboard';}catch{return 'Dashboard';}}),[mobile,setMobile]=useState(false);
   const [items,setItems]=useState([]),[floors,setFloors]=useState([]),[rooms,setRooms]=useState([]),[records,setRecords]=useState([]),[sessions,setSessions]=useState([]);
   const [loading,setLoading]=useState(true),[error,setError]=useState(''),[email,setEmail]=useState(''),[password,setPassword]=useState(''),[busy,setBusy]=useState(false);
   const [search,setSearch]=useState(''),[showAdd,setShowAdd]=useState(false),[newItem,setNewItem]=useState({asset_code:'',name:'',category:'Umum',floor_id:'',notes:''});\n  const [newFloorName,setNewFloorName]=useState(''),[roomNames,setRoomNames]=useState({}),[addingFloor,setAddingFloor]=useState(false),[addingRoom,setAddingRoom]=useState({});
   const [monitor,setMonitor]=useState({floor_id:'',shift:'Pagi'}),[photo,setPhoto]=useState(null),[monitorStatus,setMonitorStatus]=useState('present'),[monitorItem,setMonitorItem]=useState(''),[notes,setNotes]=useState('');
-  useEffect(()=>{ if(!supabase){setLoading(false);return;} supabase.auth.getSession().then(({data})=>setSession(data.session)); const {data:{subscription}}=supabase.auth.onAuthStateChange((_e,s)=>setSession(s)); return ()=>subscription.unsubscribe(); },[]);
+  useEffect(()=>{ if(!supabase){setLoading(false);return;} supabase.auth.getSession().then(({data})=>setSession(data.session)); const {data:{subscription}}=supabase.auth.onAuthStateChange((_e,s)=>setSession(s)); return ()=>subscription.unsubscribe(); },[]);\n  useEffect(()=>{try{localStorage.setItem('sim-inventaris-rs:last-page',page);}catch{}},[page]);
   useEffect(()=>{ if(session?.user) loadAll(); else {setProfile(null);setLoading(false);} },[session]);
   async function loadAll(){
     setLoading(true);setError('');
