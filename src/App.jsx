@@ -6,6 +6,33 @@ const nav = [
   ['Dashboard',LayoutDashboard],['Monitoring Shift',ClipboardCheck],['Data Inventaris',Package],['Lantai & Ruangan',Building2],['Barang Dipinjam',Archive],['Riwayat Monitoring',Clock3],['Laporan',BarChart3],['Petugas',Users]
 ];
 const fmt = n => new Intl.NumberFormat('id-ID').format(n || 0);
+async function compressMonitoringPhoto(file){
+  const bitmap=await createImageBitmap(file);
+  try{
+    let width=bitmap.width,height=bitmap.height;
+    const maxSide=1600,scale=Math.min(1,maxSide/Math.max(width,height));
+    width=Math.round(width*scale);height=Math.round(height*scale);
+    const canvas=document.createElement('canvas');
+    canvas.width=width;canvas.height=height;
+    const ctx=canvas.getContext('2d',{alpha:false});
+    if(!ctx)throw new Error('Browser tidak mendukung kompresi foto.');
+    ctx.fillStyle='#ffffff';ctx.fillRect(0,0,width,height);
+    ctx.drawImage(bitmap,0,0,width,height);
+    const toBlob=quality=>new Promise((resolve,reject)=>canvas.toBlob(b=>b?resolve(b):reject(new Error('Gagal memproses foto.')),'image/jpeg',quality));
+    let quality=0.82,blob=await toBlob(quality);
+    while(blob.size>450*1024&&quality>0.55){quality-=0.08;blob=await toBlob(quality);}
+    if(blob.size>450*1024){
+      const ratio=Math.sqrt((450*1024)/blob.size)*0.92;
+      const w=Math.max(720,Math.round(canvas.width*ratio)),h=Math.max(720,Math.round(canvas.height*ratio));
+      const smaller=document.createElement('canvas');smaller.width=w;smaller.height=h;
+      const sctx=smaller.getContext('2d',{alpha:false});
+      sctx.fillStyle='#fff';sctx.fillRect(0,0,w,h);sctx.drawImage(canvas,0,0,w,h);
+      blob=await new Promise((resolve,reject)=>smaller.toBlob(b=>b?resolve(b):reject(new Error('Gagal mengoptimalkan ukuran foto.')),'image/jpeg',0.68));
+    }
+    return new File([blob],file.name.replace(/\.[^.]+$/,'')+'-compressed.jpg',{type:'image/jpeg',lastModified:Date.now()});
+  }finally{bitmap.close?.();}
+}
+
 function App(){
   const [session,setSession]=useState(null),[profile,setProfile]=useState(null),[page,setPage]=useState(()=>{const valid=['Dashboard','Monitoring Shift','Data Inventaris','Lantai & Ruangan','Barang Dipinjam','Riwayat Monitoring','Laporan','Petugas'];try{const fromHash=decodeURIComponent(window.location.hash.replace(/^#/,''));const saved=localStorage.getItem('sim-inventaris-rs:last-page');return valid.includes(fromHash)?fromHash:(valid.includes(saved)?saved:'Dashboard');}catch{return 'Dashboard';}}),[mobile,setMobile]=useState(false);
   const [items,setItems]=useState([]),[floors,setFloors]=useState([]),[rooms,setRooms]=useState([]),[records,setRecords]=useState([]),[sessions,setSessions]=useState([]);
@@ -110,16 +137,18 @@ function App(){
         if(error)throw new Error('Gagal membuat sesi: '+error.message);
         sess=data;
       }
-      const ext=photo.type==='image/png'?'png':photo.type==='image/webp'?'webp':'jpg';
-      const path=session.user.id+'/'+sess.id+'/'+item.id+'-'+Date.now()+'.'+ext;
-      const up=await supabase.storage.from('monitoring-photos').upload(path,photo,{contentType:photo.type,upsert:false,cacheControl:'3600'});
+      const originalSize=photo.size;
+      let compressedPhoto;
+      try{compressedPhoto=await compressMonitoringPhoto(photo);}catch(compressError){throw new Error('Kompresi foto gagal: '+compressError.message);}
+      const path=session.user.id+'/'+sess.id+'/'+item.id+'-'+Date.now()+'.jpg';
+      const up=await supabase.storage.from('monitoring-photos').upload(path,compressedPhoto,{contentType:'image/jpeg',upsert:false,cacheControl:'3600'});
       if(up.error)throw new Error('Upload foto gagal: '+up.error.message);
       const {error}=await supabase.from('monitoring_records').insert({session_id:sess.id,inventory_item_id:item.id,item_name_snapshot:item.name,asset_code_snapshot:item.asset_code,status,photo_path:path,notes,borrowed_to:status==='borrowed'?notes:null,recorded_by:session.user.id});
       if(error)throw new Error('Foto terunggah tetapi catatan gagal disimpan: '+error.message);
       setCheckPhotos(v=>{const n={...v};delete n[item.id];return n;});
       setCheckNotes(v=>({...v,[item.id]:''}));
       await loadAll();
-      setError('Monitoring '+item.name+' berhasil disimpan.');
+      const savedKb=Math.round(compressedPhoto.size/1024),originalKb=Math.round(originalSize/1024);\n      setError('Monitoring '+item.name+' berhasil disimpan. Ukuran foto '+originalKb+' KB → '+savedKb+' KB.');
     }catch(e){setError(e.message||'Gagal menyimpan monitoring.');}
     finally{setSavingItem('');}
   }
