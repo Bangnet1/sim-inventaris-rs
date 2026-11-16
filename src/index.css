@@ -162,3 +162,8 @@ body{background:#f4ecd9;color:#252a34}
 .password-field .password-toggle{position:absolute;right:7px;top:50%;transform:translateY(-50%);display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;border:0;border-radius:8px;background:transparent;color:#827044;cursor:pointer}
 .password-field .password-toggle:hover{background:#f4ecd9}
 .password-field .password-toggle:focus-visible{outline:2px solid #b69a50;outline-offset:2px}
+
+
+.text-link{display:block;width:100%;margin:14px 0 4px;padding:8px;border:0;background:transparent;color:#827044;font:inherit;font-weight:600;text-align:center;cursor:pointer}
+.text-link:disabled{opacity:.55;cursor:wait}
+.text-link:focus-visible{outline:2px solid #b69a50;outline-offset:2px;border-radius:8px}
