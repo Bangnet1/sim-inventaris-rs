@@ -145,3 +145,12 @@ body{background:#f4ecd9;color:#252a34}
 .return-controls input{flex:1;min-width:0;min-height:40px;padding:9px 11px;border:1px solid #e2d8c3;border-radius:9px;background:#fffefa;color:#333744;font:inherit;font-size:12px}
 .return-controls .primary{white-space:nowrap;min-height:40px;padding:9px 13px;font-size:12px}
 @media(max-width:600px){.return-controls{margin-left:0;flex-direction:column;align-items:stretch}.return-controls input,.return-controls .primary{width:100%}}
+
+
+/* Super Admin account management */
+.account-create-form{max-width:680px;display:flex;flex-direction:column;gap:10px}
+.account-create-form .panel-head{margin-bottom:6px}
+.account-create-form label{font-size:12px;font-weight:700;color:#665b40}
+.account-create-form input,.account-create-form select{width:100%;min-height:44px;padding:10px 12px;border:1px solid #e2d8c3;border-radius:9px;background:#fffefa;color:#333744;font:inherit;font-size:13px}
+.account-create-form input:focus,.account-create-form select:focus{outline:none;border-color:#b69a50;box-shadow:0 0 0 3px #b69a501c}
+.success-note{padding:12px;border-radius:10px;background:#eaf4e9;color:#356b43;font-size:13px}
