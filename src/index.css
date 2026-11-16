@@ -154,3 +154,11 @@ body{background:#f4ecd9;color:#252a34}
 .account-create-form input,.account-create-form select{width:100%;min-height:44px;padding:10px 12px;border:1px solid #e2d8c3;border-radius:9px;background:#fffefa;color:#333744;font:inherit;font-size:13px}
 .account-create-form input:focus,.account-create-form select:focus{outline:none;border-color:#b69a50;box-shadow:0 0 0 3px #b69a501c}
 .success-note{padding:12px;border-radius:10px;background:#eaf4e9;color:#356b43;font-size:13px}
+
+
+/* Password visibility controls */
+.password-field{position:relative;display:flex;align-items:center;width:100%}
+.password-field>input{width:100%;padding-right:48px!important}
+.password-field .password-toggle{position:absolute;right:7px;top:50%;transform:translateY(-50%);display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;border:0;border-radius:8px;background:transparent;color:#827044;cursor:pointer}
+.password-field .password-toggle:hover{background:#f4ecd9}
+.password-field .password-toggle:focus-visible{outline:2px solid #b69a50;outline-offset:2px}
