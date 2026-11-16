@@ -32,3 +32,5 @@
 .edit-icon{color:#168879}
 .edit-icon:hover{background:#e8f5f2;color:#087f73}
 .room-actions{display:flex;align-items:center;gap:2px}
+
+.photo-preview{display:block;width:min(100%,260px);max-height:190px;object-fit:contain;border-radius:9px;margin:0 auto 8px}
