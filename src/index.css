@@ -250,3 +250,27 @@ body{background:#f4ecd9;color:#252a34}
 .inventory-history-grid select:focus{outline:none;border-color:#b69a50;box-shadow:0 0 0 3px #b69a501c}
 @media(max-width:760px){.inventory-filter-panel{padding:20px 18px}.inventory-history-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:15px 17px}}
 @media(max-width:380px){.inventory-filter-panel{padding:17px 14px}.inventory-history-grid{gap:13px 10px}.inventory-history-grid select{padding:9px 8px;font-size:11px}}
+
+
+/* Compact collapsible filter panels */
+.filter-toggle{
+ display:inline-flex;align-items:center;justify-content:center;gap:7px;
+ flex:0 0 auto;padding:8px 11px;border:1px solid #e5dcc8;border-radius:11px;
+ background:#fffdf8;color:#817044;font-size:12px;font-weight:700;cursor:pointer;
+ white-space:nowrap;
+}
+.filter-toggle:active{transform:translateY(1px)}
+.filter-chevron{transition:transform .18s ease}
+.filter-chevron.open{transform:rotate(180deg)}
+.history-filter-reset-row{display:flex;justify-content:flex-end;margin:-5px 0 12px}
+.history-filter-reset-row .text-button{font-size:12px}
+.history-filter-panel:not(:has(.history-filter-grid)) .history-filter-head,
+.inventory-filter-panel:not(:has(.inventory-history-grid)) .history-filter-head{margin-bottom:0}
+.history-filter-panel .history-filter-foot{margin-top:12px;padding-top:12px}
+@media(max-width:520px){
+ .filter-toggle{padding:7px 9px;font-size:11px}
+ .history-filter-head{align-items:center}
+ .history-filter-head>div{min-width:0}
+ .history-filter-head h3{margin-bottom:3px}
+ .history-filter-head p{margin:0;line-height:1.4}
+}
