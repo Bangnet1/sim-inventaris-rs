@@ -21,7 +21,7 @@ function App(){
         supabase.from('profiles').select('*').eq('id',session.user.id).single(),
         supabase.from('inventory_items').select('*, floors(name)').eq('is_active',true).order('name'),
         supabase.from('floors').select('*').eq('is_active',true).order('sort_order'),
-        supabase.from('monitoring_records').select('*, inventory_items(name,asset_code), monitoring_sessions(monitoring_date,shift,floors(name)), profiles:recorded_by(full_name)').order('recorded_at',{ascending:false}).limit(100),
+        supabase.from('monitoring_records').select('*, inventory_items(name,asset_code), monitoring_sessions(monitoring_date,shift,floors(name)), profiles!monitoring_records_recorded_by_profile_fkey(full_name)').order('recorded_at',{ascending:false}).limit(100),
         supabase.from('monitoring_sessions').select('*, floors(name)').order('started_at',{ascending:false}).limit(30)
       ]);
       if(p.error) throw p.error; if(i.error) throw i.error; if(f.error) throw f.error;
