@@ -176,3 +176,66 @@ body{background:#f4ecd9;color:#252a34}
 .inventory-filters select:focus{outline:none;border-color:#b69a50;box-shadow:0 0 0 3px #b69a501c}
 .inventory-filters .filter-reset{align-self:end;min-height:42px;padding:8px 14px;border:1px solid var(--line,#e2d8c3);border-radius:9px;background:transparent;color:var(--ink,#303642);font-weight:700;cursor:pointer}
 @media(max-width:700px){.inventory-filters{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;padding:11px}.inventory-filters .filter-reset{grid-column:1/-1;width:100%}}
+
+
+/* Riwayat Monitoring — tata letak mengikuti referensi mobile */
+.history-filter-panel{
+  padding:22px 24px;
+  border:1px solid #e6dcc5;
+  border-radius:22px;
+  background:#fffdf8;
+  box-shadow:0 2px 8px #6e5a2510;
+}
+.history-filter-head{margin-bottom:18px;align-items:flex-start}
+.history-filter-head h3{font-size:16px;color:#303747}
+.history-filter-head p{font-size:13px;line-height:1.55;color:#89816e}
+.history-filter-head .text-button{flex:0 0 auto;padding:3px 0;font-size:12px}
+.history-filter-grid{
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  column-gap:19px;
+  row-gap:17px;
+}
+.history-filter-grid label{font-size:12px;color:#665d47}
+.history-filter-grid input,.history-filter-grid select{
+  min-height:50px;
+  padding:11px 13px;
+  border:1px solid #e2d8c3;
+  border-radius:13px;
+  background:#fffefa;
+  font-size:13px;
+}
+.history-filter-foot{
+  margin-top:17px;
+  padding-top:18px;
+  font-size:12px;
+  color:#8a7c5b;
+}
+.history-table-panel{
+  border:1px solid #e6dcc5;
+  border-radius:22px;
+  padding:16px 18px;
+  overflow-x:auto;
+  -webkit-overflow-scrolling:touch;
+}
+.history-table{min-width:790px}
+.history-table th{padding:14px 13px;font-size:10px;letter-spacing:.9px}
+.history-table td{padding:17px 13px;font-size:12px;vertical-align:middle}
+.history-table td:first-child{min-width:190px}
+.history-table td:nth-child(2){min-width:120px}
+.history-table td:nth-child(5){min-width:150px}
+@media(max-width:760px){
+  .history-filter-panel{padding:22px 20px;margin-bottom:16px}
+  .history-filter-head{gap:12px}
+  .history-filter-head p{max-width:290px}
+  .history-filter-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:17px 19px}
+  .history-filter-grid input,.history-filter-grid select{min-height:50px}
+  .history-table-panel{padding:14px 16px;border-radius:21px}
+}
+@media(max-width:380px){
+  .history-filter-panel{padding:18px 15px}
+  .history-filter-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 10px}
+  .history-filter-head h3{font-size:15px}
+  .history-filter-head p{font-size:11px}
+  .history-filter-grid label{font-size:11px}
+  .history-filter-grid input,.history-filter-grid select{padding:9px 8px;font-size:11px}
+}
