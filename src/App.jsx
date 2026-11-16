@@ -137,7 +137,7 @@ function App(){
     try{
       let sess=sessions.find(x=>x.floor_id===monitor.floor_id&&x.monitoring_date===today&&x.shift===monitor.shift&&x.status==='draft'&&x.started_by===session.user.id);
       if(!sess){
-        const {data,error}=await supabase.from('monitoring_sessions').insert({floor_id:monitor.floor_id,shift:monitor.shift,started_by:session.user.id}).select().single();
+        const {data,error}=await supabase.from('monitoring_sessions').insert({floor_id:monitor.floor_id,shift:monitor.shift,started_by:session.user.id,started_by_name_snapshot:profile?.full_name||session.user.email,started_by_email_snapshot:session.user.email}).select().single();
         if(error)throw new Error('Gagal membuat sesi: '+error.message);
         sess=data;
       }
@@ -147,7 +147,7 @@ function App(){
       const path=session.user.id+'/'+sess.id+'/'+item.id+'-'+Date.now()+'.jpg';
       const up=await supabase.storage.from('monitoring-photos').upload(path,compressedPhoto,{contentType:'image/jpeg',upsert:false,cacheControl:'3600'});
       if(up.error)throw new Error('Upload foto gagal: '+up.error.message);
-      const {error}=await supabase.from('monitoring_records').insert({session_id:sess.id,inventory_item_id:item.id,item_name_snapshot:item.name,asset_code_snapshot:item.asset_code,status,photo_path:path,notes,borrowed_to:status==='borrowed'?notes:null,recorded_by:session.user.id});
+      const {error}=await supabase.from('monitoring_records').insert({session_id:sess.id,inventory_item_id:item.id,item_name_snapshot:item.name,asset_code_snapshot:item.asset_code,status,photo_path:path,notes,borrowed_to:status==='borrowed'?notes:null,recorded_by:session.user.id,recorded_by_name_snapshot:profile?.full_name||session.user.email,recorded_by_email_snapshot:session.user.email});
       if(error)throw new Error('Foto terunggah tetapi catatan gagal disimpan: '+error.message);
       setCheckPhotos(v=>{const n={...v};delete n[item.id];return n;});
       setCheckNotes(v=>({...v,[item.id]:''}));
@@ -161,7 +161,7 @@ function App(){
     if(!window.confirm('Konfirmasi bahwa '+record.item_name_snapshot+' sudah dikembalikan?'))return;
     setReturningRecord(record.id);setError('');
     try{
-      const {error}=await supabase.from('inventory_returns').insert({monitoring_record_id:record.id,inventory_item_id:record.inventory_item_id,returned_by:session.user.id,notes:(returnNotes[record.id]||'').trim()||null});
+      const {error}=await supabase.from('inventory_returns').insert({monitoring_record_id:record.id,inventory_item_id:record.inventory_item_id,returned_by:session.user.id,returned_by_name_snapshot:profile?.full_name||session.user.email,returned_by_email_snapshot:session.user.email,notes:(returnNotes[record.id]||'').trim()||null});
       if(error)throw error;
       setReturnNotes(v=>({...v,[record.id]:''}));
       await loadAll();
