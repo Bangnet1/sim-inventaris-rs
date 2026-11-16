@@ -167,3 +167,12 @@ body{background:#f4ecd9;color:#252a34}
 .text-link{display:block;width:100%;margin:14px 0 4px;padding:8px;border:0;background:transparent;color:#827044;font:inherit;font-weight:600;text-align:center;cursor:pointer}
 .text-link:disabled{opacity:.55;cursor:wait}
 .text-link:focus-visible{outline:2px solid #b69a50;outline-offset:2px;border-radius:8px}
+
+
+/* Inventory list filters */
+.inventory-filters{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:14px 0 18px;padding:14px;border:1px solid var(--line,#e6dcc8);border-radius:14px;background:rgba(255,255,255,.55)}
+.inventory-filters label{display:flex;flex-direction:column;gap:6px;min-width:0;font-size:12px;font-weight:700;color:var(--muted,#827b6c)}
+.inventory-filters select{width:100%;min-width:0;min-height:42px;padding:8px 10px;border:1px solid var(--line,#e2d8c3);border-radius:9px;background:#fffefa;color:var(--ink,#303642);font:inherit;font-size:13px}
+.inventory-filters select:focus{outline:none;border-color:#b69a50;box-shadow:0 0 0 3px #b69a501c}
+.inventory-filters .filter-reset{align-self:end;min-height:42px;padding:8px 14px;border:1px solid var(--line,#e2d8c3);border-radius:9px;background:transparent;color:var(--ink,#303642);font-weight:700;cursor:pointer}
+@media(max-width:700px){.inventory-filters{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;padding:11px}.inventory-filters .filter-reset{grid-column:1/-1;width:100%}}
